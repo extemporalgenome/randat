@@ -6,6 +6,7 @@ package main
 
 import (
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"flag"
@@ -19,22 +20,29 @@ func main() {
 	var (
 		n   int64
 		r   int
+		b64 bool
 		raw bool
 	)
 
 	flag.Int64Var(&n, "n", 16, "number of (unencoded) bytes to output")
 	flag.IntVar(&r, "r", 1, "number of repititions (output lines)")
 	flag.BoolVar(&raw, "raw", false, "raw output")
+	flag.BoolVar(&b64, "64", false, "base64 output")
 	flag.Parse()
 
-	var w io.Writer = os.Stdout
+	var w io.WriteCloser = NopWriteCloser(os.Stdout)
 
 	if !raw {
-		w = NewHexWriter(w)
+		if b64 {
+			w = base64.NewEncoder(base64.StdEncoding, w)
+		} else {
+			w = NopWriteCloser(NewHexWriter(w))
+		}
 	}
 
 	for r > 0 {
 		_, err := io.CopyN(w, rand.Reader, n)
+		w.Close() // ignoring error
 		fmt.Println()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -42,6 +50,18 @@ func main() {
 		}
 		r--
 	}
+}
+
+type writecloser struct {
+	io.Writer
+}
+
+func (w writecloser) Close() error {
+	return nil
+}
+
+func NopWriteCloser(w io.Writer) io.WriteCloser {
+	return writecloser{w}
 }
 
 type hexwriter struct {
