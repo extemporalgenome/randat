@@ -51,9 +51,13 @@ func main() {
 			fmt.Fprintln(os.Stderr, "Error:", err)
 			os.Exit(1)
 		} else {
+			r = f
 			if n <= 0 || rep <= 0 {
 				if info, err := f.Stat(); err == nil {
 					size = info.Size()
+					if size <= 0 {
+						break
+					}
 					switch {
 					case n <= 0 && rep <= 0:
 						n = size
@@ -71,7 +75,6 @@ func main() {
 					}
 				}
 			}
-			r = f
 		}
 	}
 
