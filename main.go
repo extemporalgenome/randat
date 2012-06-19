@@ -54,7 +54,9 @@ func main() {
 
 		_, err := io.CopyN(w, rand.Reader, n)
 		w.Close() // ignoring error
-		fmt.Println()
+		if !raw {
+			fmt.Println()
+		}
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error:", err)
 			os.Exit(1)
