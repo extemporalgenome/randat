@@ -16,16 +16,18 @@ import (
 
 func main() {
 	var (
+		input    string
 		n        int64
-		r        int
+		rep      int
 		raw, b64 bool
 		code     bool
 		cols     uint
 		str, esc bool
 	)
 
+	flag.StringVar(&input, "i", "", "input file or stdin if '-' (default is urandom)")
 	flag.Int64Var(&n, "n", 16, "number of (unencoded) bytes to output")
-	flag.IntVar(&r, "r", 1, "number of repititions (output lines)")
+	flag.IntVar(&rep, "r", 1, "number of repititions (output lines)")
 	flag.BoolVar(&raw, "raw", false, "raw output")
 	flag.BoolVar(&b64, "64", false, "base64 output")
 	flag.BoolVar(&code, "code", false, "comma-separated hex literals (typical array syntax)")
@@ -34,11 +36,33 @@ func main() {
 	flag.BoolVar(&esc, "esc", false, "hex-escape all characters (C compat) when using -str")
 	flag.Parse()
 
-	var w, sink io.WriteCloser
+	var (
+		w, sink io.WriteCloser
+		r       io.Reader
+	)
+
+	switch input {
+	case "":
+		r = rand.Reader
+	case "-":
+		r = os.Stdin
+	default:
+		if f, err := os.Open(input); err != nil {
+			fmt.Fprintln(os.Stderr, "Error:", err)
+			os.Exit(1)
+		} else {
+			if n < 0 {
+				if info, err := f.Stat(); err == nil {
+					n = info.Size()
+				}
+			}
+			r = f
+		}
+	}
 
 	sink = NopWriteCloser(os.Stdout)
 
-	for r > 0 {
+	for rep > 0 {
 		switch {
 		case raw:
 			w = sink
@@ -52,7 +76,7 @@ func main() {
 			w = NopWriteCloser(NewHexWriter(sink))
 		}
 
-		_, err := io.CopyN(w, rand.Reader, n)
+		_, err := io.CopyN(w, r, n)
 		w.Close() // ignoring error
 		if !raw {
 			fmt.Println()
@@ -61,7 +85,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, "Error:", err)
 			os.Exit(1)
 		}
-		r--
+		rep--
 	}
 }
 
