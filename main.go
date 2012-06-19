@@ -16,18 +16,17 @@ import (
 
 func main() {
 	var (
-		input    string
-		n        int64
-		rep      int
-		raw, b64 bool
-		code     bool
-		cols     uint
-		str, esc bool
+		input        string
+		n, rep, size int64
+		raw, b64     bool
+		code         bool
+		cols         uint
+		str, esc     bool
 	)
 
 	flag.StringVar(&input, "i", "", "input file or stdin if '-' (default is urandom)")
 	flag.Int64Var(&n, "n", 16, "number of (unencoded) bytes to output")
-	flag.IntVar(&rep, "r", 1, "number of repititions (output lines)")
+	flag.Int64Var(&rep, "r", 1, "number of repititions (output lines)")
 	flag.BoolVar(&raw, "raw", false, "raw output")
 	flag.BoolVar(&b64, "64", false, "base64 output")
 	flag.BoolVar(&code, "code", false, "comma-separated hex literals (typical array syntax)")
@@ -51,9 +50,24 @@ func main() {
 			fmt.Fprintln(os.Stderr, "Error:", err)
 			os.Exit(1)
 		} else {
-			if n < 0 {
+			if n <= 0 || rep <= 0 {
 				if info, err := f.Stat(); err == nil {
-					n = info.Size()
+					size = info.Size()
+					switch {
+					case n <= 0 && rep <= 0:
+						n = size
+						rep = 1
+					case n <= 0:
+						n = size / rep
+						if size%rep > 0 {
+							n++
+						}
+					case rep <= 0:
+						rep = size / n
+						if size%rep > 0 {
+							rep++
+						}
+					}
 				}
 			}
 			r = f
@@ -62,7 +76,7 @@ func main() {
 
 	sink = NopWriteCloser(os.Stdout)
 
-	for rep > 0 {
+	for rep != 0 {
 		switch {
 		case raw:
 			w = sink
@@ -86,6 +100,15 @@ func main() {
 			os.Exit(1)
 		}
 		rep--
+		if size > 0 {
+			size -= n
+			if size == 0 {
+				break
+			} else if size < n {
+				n = size
+				rep = 1
+			}
+		}
 	}
 }
 
