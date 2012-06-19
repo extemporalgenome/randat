@@ -78,7 +78,7 @@ func main() {
 		}
 	}
 
-	if n == 0 {
+	if n <= 0 {
 		n = 16
 	}
 	if rep == 0 {
